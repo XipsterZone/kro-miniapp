@@ -25,19 +25,16 @@
 *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
 html{
-  height: 100%;
-  overflow: hidden;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body{
   margin:0; padding:0;
-  height: 100%;
   width: 100%;
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
-  touch-action: pan-y;
+  overflow-x: hidden;
+  overscroll-behavior: none; /* без "резинки" при перетягивании за края */
+  touch-action: pan-y; /* разрешён только вертикальный скролл жестом, горизонтальный — запрещён */
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -45,17 +42,15 @@ body{
   -webkit-font-smoothing: antialiased;
 }
 
-/* #app — единственный скроллящийся контейнер (только по вертикали).
-   html/body зафиксированы, поэтому "елозить" интерфейс влево-вправо
-   или тянуть его резиновым скроллом iOS/Android больше нельзя. */
+/* Раньше здесь использовался position:fixed на html/body — из-за него в Telegram
+   на iOS интерфейс визуально съезжал вправо (WebView Telegram применяет
+   собственную трансформацию к странице, из-за чего fixed-позиционирование
+   считает размеры некорректно). Вместо этого просто запрещаем горизонтальный
+   скролл/перетягивание — тот же результат, без побочных эффектов. */
 #app{
-  height: 100%;
   width: 100%;
-  max-width: 100vw;
-  overflow-y: auto;
+  min-height: 100vh;
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
   padding-bottom: 24px;
   box-sizing: border-box;
 }
