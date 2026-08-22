@@ -229,6 +229,71 @@ h2{ font-size: 18px; margin: 6px 0 16px; }
   padding: 12px 14px; border-radius: 12px; font-size: 13.5px; z-index: 60; box-shadow: 0 4px 18px rgba(0,0,0,.25);
 }
 
+/* Поля-триггеры даты/времени: обычный текстовый инпут (та же ширина, что у
+   остальных полей), но не редактируется вручную — только открывает попап. */
+.picker-trigger{ cursor: pointer; caret-color: transparent; }
+.field input.picker-trigger-date, .field input.picker-trigger-time{
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 18px;
+  padding-right: 40px;
+}
+.picker-trigger-date{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='1.8'><rect x='3' y='5' width='18' height='16' rx='3'/><path d='M3 9h18M8 3v4M16 3v4'/></svg>");
+}
+.picker-trigger-time{
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='1.8'><circle cx='12' cy='12' r='9'/><path d='M12 7v5l3.5 2'/></svg>");
+}
+
+/* Всплывающие попапы (bottom sheet) для даты и времени */
+.picker-overlay{
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 70;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.picker-overlay.hidden{ display:none; }
+.picker-sheet{
+  width: 100%; max-width: 480px; background: var(--section-bg); border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  max-height: 82vh; overflow-y: auto; box-sizing: border-box;
+  animation: sheetUp .18s ease;
+}
+@keyframes sheetUp{ from{ transform: translateY(24px); opacity:0; } to{ transform: translateY(0); opacity:1; } }
+.picker-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
+.picker-title{ font-size: 16px; font-weight: 700; }
+.picker-close{ background:none; border:none; font-size: 24px; line-height:1; color: var(--hint); cursor:pointer; padding: 4px 8px; }
+
+/* Календарь */
+.cal-nav{ display:flex; align-items:center; justify-content:space-between; margin: 6px 0 10px; }
+.cal-nav button{ background: var(--secondary-bg); border:none; width:34px; height:34px; border-radius:10px; font-size:18px; color: var(--accent); cursor:pointer; }
+.cal-nav button:disabled{ opacity:.3; cursor:not-allowed; }
+.cal-month-label{ font-weight:700; font-size:15px; text-transform: capitalize; }
+.cal-weekdays{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:12px; color:var(--hint); margin-bottom:4px; }
+.cal-days{ display:grid; grid-template-columns:repeat(7,1fr); grid-auto-rows: 42px; gap:2px; margin-bottom: 14px; }
+.cal-day{
+  border:none; border-radius:10px; background:transparent; font-size:14.5px; color:var(--text);
+  cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:inherit;
+}
+.cal-day.other-month{ visibility:hidden; pointer-events:none; }
+.cal-day.disabled{ color: var(--hint); opacity:.35; cursor:not-allowed; }
+.cal-day.today{ box-shadow: inset 0 0 0 1.5px var(--accent); font-weight:700; }
+.cal-day.selected{ background: var(--accent); color: var(--accent-text); font-weight:700; }
+
+/* Колёсико выбора времени */
+.time-wheels{ position:relative; display:flex; align-items:center; justify-content:center; gap:10px; height:180px; margin: 10px 0 16px; }
+.time-wheel{
+  width: 72px; height: 180px; overflow-y: auto; scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.time-wheel::-webkit-scrollbar{ display:none; }
+.time-wheel-pad{ height: 72px; }
+.time-wheel-item{
+  height: 36px; display:flex; align-items:center; justify-content:center;
+  font-size: 18px; color: var(--hint); scroll-snap-align:center; cursor:pointer; font-variant-numeric: tabular-nums;
+}
+.time-wheel-item.center{ color: var(--text); font-weight:700; font-size: 21px; }
+.time-wheel-sep{ font-size: 20px; font-weight:700; color: var(--text); }
+.time-wheel-highlight{
+  position:absolute; top:50%; left:0; right:0; height:36px; transform: translateY(-50%);
+  border-top:1px solid var(--divider); border-bottom:1px solid var(--divider); pointer-events:none;
+}
 
 </style>
 </head>
@@ -272,11 +337,11 @@ h2{ font-size: 18px; margin: 6px 0 16px; }
     <h2 id="info-title">Данные визита</h2>
     <div class="field">
       <label>Дата визита</label>
-      <input type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="ДД.ММ.ГГГГ" id="f-date" />
+      <input type="text" class="picker-trigger picker-trigger-date" readonly inputmode="none" autocomplete="off" placeholder="ДД.ММ.ГГГГ" id="f-date" />
     </div>
     <div class="field">
       <label>Время визита</label>
-      <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="ЧЧ:ММ" id="f-time" />
+      <input type="text" class="picker-trigger picker-trigger-time" readonly inputmode="none" autocomplete="off" placeholder="ЧЧ:ММ" id="f-time" />
     </div>
     <div class="field">
       <label id="f-object-label">Объект (название/адрес)</label>
@@ -332,6 +397,43 @@ h2{ font-size: 18px; margin: 6px 0 16px; }
 
   <!-- Тост ошибки -->
   <div id="error-toast" class="error-toast hidden"></div>
+
+  <!-- Всплывающий календарь для даты визита -->
+  <div id="date-picker-overlay" class="picker-overlay hidden">
+    <div class="picker-sheet">
+      <div class="picker-header">
+        <div class="picker-title">Дата визита</div>
+        <button type="button" class="picker-close" id="date-picker-close">×</button>
+      </div>
+      <div class="cal-nav">
+        <button type="button" id="cal-prev">‹</button>
+        <div class="cal-month-label" id="cal-month-label"></div>
+        <button type="button" id="cal-next">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+      </div>
+      <div class="cal-days" id="cal-days"></div>
+      <button type="button" class="secondary-btn" id="cal-today-btn">Сегодня</button>
+    </div>
+  </div>
+
+  <!-- Всплывающий выбор времени для времени визита -->
+  <div id="time-picker-overlay" class="picker-overlay hidden">
+    <div class="picker-sheet">
+      <div class="picker-header">
+        <div class="picker-title">Время визита</div>
+        <button type="button" class="picker-close" id="time-picker-close">×</button>
+      </div>
+      <div class="time-wheels">
+        <div class="time-wheel" id="wheel-hours"></div>
+        <div class="time-wheel-sep">:</div>
+        <div class="time-wheel" id="wheel-minutes"></div>
+        <div class="time-wheel-highlight"></div>
+      </div>
+      <button type="button" class="primary-btn" id="time-picker-confirm">Готово</button>
+    </div>
+  </div>
 
 </div>
 
@@ -970,12 +1072,11 @@ const OBJECT_OPTIONS = {
     return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
   }
 
-  // ---- Дата/время как обычные текстовые поля (без нативных <input type=date/time>) ----
-  // Нативные пикеры даты/времени в некоторых WebView (в т.ч. Telegram на iOS) имеют
+  // ---- Дата/время: поля-триггеры + всплывающие попапы (календарь / колёсико времени) ----
+  // Нативные <input type=date/time> в некоторых WebView (в т.ч. Telegram на iOS) имеют
   // свой внутренний минимальный размер, который нельзя надёжно подогнать под ширину
-  // остальных полей через CSS — в разных клиентах он вылезает или обрезается по-разному.
-  // Поэтому дата и время — обычные текстовые поля с маской ввода и валидацией,
-  // они гарантированно той же ширины, что и остальные поля формы везде одинаково.
+  // остальных полей через CSS. Поэтому визуально это обычные текстовые поля (той же
+  // ширины, что и остальные), а по тапу открывается свой попап с выбором.
 
   function isoDateToDisplay(iso) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
@@ -999,22 +1100,173 @@ const OBJECT_OPTIONS = {
     return h >= 0 && h <= 23 && mi >= 0 && mi <= 59;
   }
 
-  function attachDateMask(el) {
-    el.addEventListener("input", () => {
-      const digits = el.value.replace(/\D/g, "").slice(0, 8);
-      if (digits.length > 4) el.value = digits.slice(0, 2) + "." + digits.slice(2, 4) + "." + digits.slice(4);
-      else if (digits.length > 2) el.value = digits.slice(0, 2) + "." + digits.slice(2);
-      else el.value = digits;
+  const MONTH_NAMES = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+
+  function todayParts() {
+    const d = new Date();
+    return { y: d.getFullYear(), m: d.getMonth(), day: d.getDate() };
+  }
+
+  // ---- Календарь (попап даты) ----
+  const calEls = {
+    overlay: document.getElementById("date-picker-overlay"),
+    monthLabel: document.getElementById("cal-month-label"),
+    days: document.getElementById("cal-days"),
+    prevBtn: document.getElementById("cal-prev"),
+    nextBtn: document.getElementById("cal-next"),
+    closeBtn: document.getElementById("date-picker-close"),
+    todayBtn: document.getElementById("cal-today-btn"),
+  };
+  let calView = todayParts(); // { y, m, day: <не используется здесь> } — текущий отображаемый месяц
+  let calSelectedIso = null;
+
+  function renderCalendar() {
+    const t = todayParts();
+    calEls.monthLabel.textContent = MONTH_NAMES[calView.m] + " " + calView.y;
+
+    const isCurrentMonth = calView.y === t.y && calView.m === t.m;
+    calEls.nextBtn.disabled = isCurrentMonth;
+
+    // День недели первого числа месяца, приведённый к неделе Пн(0)..Вс(6)
+    const firstDow = (new Date(calView.y, calView.m, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(calView.y, calView.m + 1, 0).getDate();
+
+    let html = "";
+    for (let i = 0; i < firstDow; i++) html += '<div class="cal-day other-month"></div>';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const iso = calView.y + "-" + String(calView.m + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+      const isFuture = calView.y > t.y || (calView.y === t.y && (calView.m > t.m || (calView.m === t.m && day > t.day)));
+      const isToday = calView.y === t.y && calView.m === t.m && day === t.day;
+      const isSelected = iso === calSelectedIso;
+      const cls = ["cal-day"];
+      if (isFuture) cls.push("disabled");
+      if (isToday) cls.push("today");
+      if (isSelected) cls.push("selected");
+      html += '<button type="button" class="' + cls.join(" ") + '" data-iso="' + iso + '"' + (isFuture ? " disabled" : "") + ">" + day + "</button>";
+    }
+    calEls.days.innerHTML = html;
+
+    calEls.days.querySelectorAll(".cal-day:not(.disabled):not(.other-month)").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        calSelectedIso = btn.dataset.iso;
+        els.fDate.value = isoDateToDisplay(calSelectedIso);
+        closeDatePicker();
+      });
     });
   }
 
-  function attachTimeMask(el) {
-    el.addEventListener("input", () => {
-      const digits = el.value.replace(/\D/g, "").slice(0, 4);
-      if (digits.length > 2) el.value = digits.slice(0, 2) + ":" + digits.slice(2);
-      else el.value = digits;
+  function openDatePicker() {
+    const currentIso = displayDateToIso(els.fDate.value) || todayISO();
+    calSelectedIso = currentIso;
+    const [y, m] = currentIso.split("-").map(Number);
+    calView = { y, m: m - 1 };
+    renderCalendar();
+    calEls.overlay.classList.remove("hidden");
+  }
+
+  function closeDatePicker() {
+    calEls.overlay.classList.add("hidden");
+  }
+
+  calEls.prevBtn.addEventListener("click", () => {
+    calView.m--;
+    if (calView.m < 0) { calView.m = 11; calView.y--; }
+    renderCalendar();
+  });
+  calEls.nextBtn.addEventListener("click", () => {
+    if (calEls.nextBtn.disabled) return;
+    calView.m++;
+    if (calView.m > 11) { calView.m = 0; calView.y++; }
+    renderCalendar();
+  });
+  calEls.closeBtn.addEventListener("click", closeDatePicker);
+  calEls.overlay.addEventListener("click", (e) => { if (e.target === calEls.overlay) closeDatePicker(); });
+  calEls.todayBtn.addEventListener("click", () => {
+    const t = todayParts();
+    calView = { y: t.y, m: t.m };
+    calSelectedIso = todayISO();
+    els.fDate.value = isoDateToDisplay(calSelectedIso);
+    closeDatePicker();
+  });
+  els.fDate.addEventListener("click", openDatePicker);
+
+  // ---- Колёсико времени (попап времени) ----
+  const timeEls = {
+    overlay: document.getElementById("time-picker-overlay"),
+    hoursCol: document.getElementById("wheel-hours"),
+    minutesCol: document.getElementById("wheel-minutes"),
+    closeBtn: document.getElementById("time-picker-close"),
+    confirmBtn: document.getElementById("time-picker-confirm"),
+  };
+  const WHEEL_ITEM_H = 36;
+  let wheelHours = null;
+  let wheelMinutes = null;
+
+  function buildWheel(container, values) {
+    container.innerHTML =
+      '<div class="time-wheel-pad"></div>' +
+      values.map((v) => '<div class="time-wheel-item" data-value="' + v + '">' + v + "</div>").join("") +
+      '<div class="time-wheel-pad"></div>';
+
+    function currentIndex() {
+      const idx = Math.round(container.scrollTop / WHEEL_ITEM_H);
+      return Math.max(0, Math.min(values.length - 1, idx));
+    }
+    function highlightCenter() {
+      const idx = currentIndex();
+      container.querySelectorAll(".time-wheel-item").forEach((el, i) => el.classList.toggle("center", i === idx));
+    }
+    function scrollToIndex(idx, smooth) {
+      container.scrollTo({ top: idx * WHEEL_ITEM_H, behavior: smooth ? "smooth" : "auto" });
+    }
+
+    let scrollTimeout;
+    container.addEventListener("scroll", () => {
+      highlightCenter();
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => scrollToIndex(currentIndex(), true), 100);
+    });
+
+    container.querySelectorAll(".time-wheel-item").forEach((el, i) => {
+      el.addEventListener("click", () => {
+        scrollToIndex(i, true);
+        setTimeout(highlightCenter, 200);
+      });
+    });
+
+    return {
+      set: (value) => { scrollToIndex(Math.max(0, values.indexOf(value)), false); highlightCenter(); },
+      get: () => values[currentIndex()],
+    };
+  }
+
+  function openTimePicker() {
+    const m = /^(\d{2}):(\d{2})$/.exec(els.fTime.value) || [null, nowHHMM().slice(0, 2), nowHHMM().slice(3, 5)];
+    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+    const minutes = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+    wheelHours = buildWheel(timeEls.hoursCol, hours);
+    wheelMinutes = buildWheel(timeEls.minutesCol, minutes);
+    timeEls.overlay.classList.remove("hidden");
+    // scrollTo работает только когда контейнер уже видим/имеет размеры
+    requestAnimationFrame(() => {
+      wheelHours.set(m[1]);
+      wheelMinutes.set(m[2]);
     });
   }
+
+  function closeTimePicker() {
+    timeEls.overlay.classList.add("hidden");
+  }
+
+  timeEls.closeBtn.addEventListener("click", closeTimePicker);
+  timeEls.overlay.addEventListener("click", (e) => { if (e.target === timeEls.overlay) closeTimePicker(); });
+  timeEls.confirmBtn.addEventListener("click", () => {
+    if (wheelHours && wheelMinutes) {
+      els.fTime.value = wheelHours.get() + ":" + wheelMinutes.get();
+    }
+    closeTimePicker();
+  });
+  els.fTime.addEventListener("click", openTimePicker);
 
   function newState(type) {
     const def = CHECKLISTS[type];
@@ -1135,9 +1387,6 @@ const OBJECT_OPTIONS = {
   document.querySelectorAll(".type-card").forEach((btn) => {
     btn.addEventListener("click", () => startNewCheck(btn.dataset.type));
   });
-
-  attachDateMask(els.fDate);
-  attachTimeMask(els.fTime);
 
   els.infoNextBtn.addEventListener("click", () => {
     const isoDate = displayDateToIso(els.fDate.value);
