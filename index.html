@@ -24,8 +24,20 @@
 
 *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html,body{
+html{
+  height: 100%;
+  overflow: hidden;
+}
+
+body{
   margin:0; padding:0;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: pan-y;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -33,7 +45,20 @@ html,body{
   -webkit-font-smoothing: antialiased;
 }
 
-#app{ min-height: 100vh; padding-bottom: 24px; }
+/* #app — единственный скроллящийся контейнер (только по вертикали).
+   html/body зафиксированы, поэтому "елозить" интерфейс влево-вправо
+   или тянуть его резиновым скроллом iOS/Android больше нельзя. */
+#app{
+  height: 100%;
+  width: 100%;
+  max-width: 100vw;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding-bottom: 24px;
+  box-sizing: border-box;
+}
 
 .hidden{ display: none !important; }
 
@@ -88,11 +113,18 @@ html,body{
 /* Fields */
 .field{ margin-bottom: 16px; }
 .field label{ display:block; font-size: 13px; color: var(--hint); margin-bottom: 6px; font-weight: 500; }
-.field input[type=text], .field input[type=date], .field input[type=time], .field textarea{
+.field input[type=text], .field input[type=date], .field input[type=time], .field textarea, .field select{
   width:100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--divider);
   background: var(--section-bg); color: var(--text); font-size: 15px; font-family: inherit;
 }
 .field textarea{ resize: vertical; }
+.field select{
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path fill='%238e8e93' d='M5.5 7.5l4.5 4.5 4.5-4.5z'/></svg>");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 18px;
+  padding-right: 36px;
+}
+.field select:invalid{ color: var(--hint); }
 .readonly-field .readonly-value{
   padding: 12px 14px; border-radius: 12px; background: var(--secondary-bg); color: var(--text); font-size: 15px;
 }
@@ -253,7 +285,9 @@ h2{ font-size: 18px; margin: 6px 0 16px; }
     </div>
     <div class="field">
       <label id="f-object-label">Объект (название/адрес)</label>
-      <input type="text" id="f-object" placeholder="Например: ТРЦ «Он», 2 этаж" />
+      <select id="f-object" required>
+        <option value="" disabled selected>— выберите объект —</option>
+      </select>
     </div>
     <div class="field">
       <label>Тайный гость (ID)</label>
@@ -308,7 +342,7 @@ h2{ font-size: 18px; margin: 6px 0 16px; }
 
 <script>
 // ====== НАСТРОЙКИ (заполните после деплоя Apps Script) ======
-var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWvUaYSqZeTMUJtQ78DmOs8IdAe69sD7u7tR6qCnwW8RQ8fhIqhLTR02VBB4VkWfrzBw/exec";
+var APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
 var APP_TITLE = "Проверка КРО";
 // ==============================================================
 
@@ -862,6 +896,26 @@ const CHECKLISTS = {
   }
 };
 
+// Список объектов сети для выпадающего списка на экране «Данные визита».
+// Чтобы добавить/убрать объект — просто отредактируйте нужный массив ниже.
+const OBJECT_OPTIONS = {
+  restaurant: [
+    "100 Хинкали",
+    "«Батони» м. Смоленская",
+    "«Батони» м. Киевская",
+    "«Батони» м. Фрунзенская",
+    "«Батони» м. Профсоюзная",
+    "«Батони» м. Ул. 1905 года",
+    "«Батони» м. Технопарк",
+  ],
+  foodcourt: [
+    "«Батони» м. Саларьево",
+    "«Батони» м. Свиблово",
+    "«Батони» м. Щукинская",
+    "«Батони» м. Калужская",
+  ],
+};
+
 
 /* КРО мини-апп — логика фронтенда */
 (function () {
@@ -1006,13 +1060,22 @@ const CHECKLISTS = {
     openInfoScreen();
   }
 
+  function populateObjectOptions(type, selected) {
+    const options = OBJECT_OPTIONS[type] || [];
+    els.fObject.innerHTML =
+      '<option value="" disabled' + (selected ? "" : " selected") + ">— выберите объект —</option>" +
+      options
+        .map((name) => '<option value="' + escapeHtml(name) + '"' + (name === selected ? " selected" : "") + ">" + escapeHtml(name) + "</option>")
+        .join("");
+  }
+
   function openInfoScreen() {
     const def = CHECKLISTS[state.type];
     els.infoTitle.textContent = "Данные визита — " + def.emoji + " " + def.title;
     els.fObjectLabel.textContent = def.objectLabel;
     els.fDate.value = state.date;
     els.fTime.value = state.time;
-    els.fObject.value = state.object;
+    populateObjectOptions(state.type, state.object);
     els.fGuestId.value = state.guestId;
 
     const tgUser = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
@@ -1037,7 +1100,7 @@ const CHECKLISTS = {
     state.guestId = els.fGuestId.value.trim();
     if (!state.object) {
       shake(els.fObject);
-      showError("Укажите название/адрес объекта");
+      showError("Выберите объект проверки из списка");
       return;
     }
     saveDraft();
