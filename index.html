@@ -108,21 +108,11 @@ body{
 /* Fields */
 .field{ margin-bottom: 16px; overflow: hidden; }
 .field label{ display:block; font-size: 13px; color: var(--hint); margin-bottom: 6px; font-weight: 500; }
-.field input[type=text], .field input[type=date], .field input[type=time], .field textarea, .field select{
+.field input[type=text], .field textarea, .field select{
   width:100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--divider);
   background: var(--section-bg); color: var(--text); font-size: 15px; font-family: inherit;
 }
 .field textarea{ resize: vertical; }
-/* У input[type=date]/[type=time] в некоторых WebView (в т.ч. Telegram на iOS)
-   есть собственный внутренний минимальный размер под формат даты/времени,
-   который может побеждать width:100% и вылезать за пределы поля. Обнуляем
-   его явно, чтобы поле было ровно такой же ширины, как остальные. */
-.field input[type=date], .field input[type=time]{
-  min-width: 0;
-  max-width: 100%;
-  -webkit-min-logical-width: 0;
-  display: block;
-}
 .field select{
   appearance: none; -webkit-appearance: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path fill='%238e8e93' d='M5.5 7.5l4.5 4.5 4.5-4.5z'/></svg>");
@@ -282,11 +272,11 @@ h2{ font-size: 18px; margin: 6px 0 16px; }
     <h2 id="info-title">Данные визита</h2>
     <div class="field">
       <label>Дата визита</label>
-      <input type="date" id="f-date" />
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="ДД.ММ.ГГГГ" id="f-date" />
     </div>
     <div class="field">
       <label>Время визита</label>
-      <input type="time" id="f-time" />
+      <input type="text" inputmode="numeric" autocomplete="off" maxlength="5" placeholder="ЧЧ:ММ" id="f-time" />
     </div>
     <div class="field">
       <label id="f-object-label">Объект (название/адрес)</label>
@@ -969,13 +959,61 @@ const OBJECT_OPTIONS = {
   }
 
   function todayISO() {
+    // Локальная дата устройства (а не UTC — toISOString() мог сместить дату
+    // на соседние сутки поздним вечером/ночью из-за разницы с UTC).
     const d = new Date();
-    return d.toISOString().slice(0, 10);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
   function nowHHMM() {
     const d = new Date();
     return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+
+  // ---- Дата/время как обычные текстовые поля (без нативных <input type=date/time>) ----
+  // Нативные пикеры даты/времени в некоторых WebView (в т.ч. Telegram на iOS) имеют
+  // свой внутренний минимальный размер, который нельзя надёжно подогнать под ширину
+  // остальных полей через CSS — в разных клиентах он вылезает или обрезается по-разному.
+  // Поэтому дата и время — обычные текстовые поля с маской ввода и валидацией,
+  // они гарантированно той же ширины, что и остальные поля формы везде одинаково.
+
+  function isoDateToDisplay(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+    return m ? m[3] + "." + m[2] + "." + m[1] : "";
+  }
+
+  function displayDateToIso(display) {
+    const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec((display || "").trim());
+    if (!m) return null;
+    const day = Number(m[1]), month = Number(m[2]), year = Number(m[3]);
+    if (month < 1 || month > 12) return null;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    if (day < 1 || day > daysInMonth) return null;
+    return year + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+  }
+
+  function isValidTimeDisplay(display) {
+    const m = /^(\d{2}):(\d{2})$/.exec((display || "").trim());
+    if (!m) return false;
+    const h = Number(m[1]), mi = Number(m[2]);
+    return h >= 0 && h <= 23 && mi >= 0 && mi <= 59;
+  }
+
+  function attachDateMask(el) {
+    el.addEventListener("input", () => {
+      const digits = el.value.replace(/\D/g, "").slice(0, 8);
+      if (digits.length > 4) el.value = digits.slice(0, 2) + "." + digits.slice(2, 4) + "." + digits.slice(4);
+      else if (digits.length > 2) el.value = digits.slice(0, 2) + "." + digits.slice(2);
+      else el.value = digits;
+    });
+  }
+
+  function attachTimeMask(el) {
+    el.addEventListener("input", () => {
+      const digits = el.value.replace(/\D/g, "").slice(0, 4);
+      if (digits.length > 2) el.value = digits.slice(0, 2) + ":" + digits.slice(2);
+      else el.value = digits;
+    });
   }
 
   function newState(type) {
@@ -1078,7 +1116,7 @@ const OBJECT_OPTIONS = {
     const def = CHECKLISTS[state.type];
     els.infoTitle.textContent = "Данные визита — " + def.emoji + " " + def.title;
     els.fObjectLabel.textContent = def.objectLabel;
-    els.fDate.value = state.date;
+    els.fDate.value = isoDateToDisplay(state.date);
     els.fTime.value = state.time;
     populateObjectOptions(state.type, state.object);
     els.fGuestId.value = state.guestId;
@@ -1098,9 +1136,23 @@ const OBJECT_OPTIONS = {
     btn.addEventListener("click", () => startNewCheck(btn.dataset.type));
   });
 
+  attachDateMask(els.fDate);
+  attachTimeMask(els.fTime);
+
   els.infoNextBtn.addEventListener("click", () => {
-    state.date = els.fDate.value;
-    state.time = els.fTime.value;
+    const isoDate = displayDateToIso(els.fDate.value);
+    if (!isoDate) {
+      shake(els.fDate);
+      showError("Введите корректную дату в формате ДД.ММ.ГГГГ");
+      return;
+    }
+    if (!isValidTimeDisplay(els.fTime.value)) {
+      shake(els.fTime);
+      showError("Введите корректное время в формате ЧЧ:ММ");
+      return;
+    }
+    state.date = isoDate;
+    state.time = els.fTime.value.trim();
     state.object = els.fObject.value.trim();
     state.guestId = els.fGuestId.value.trim();
     if (!state.object) {
@@ -1276,7 +1328,7 @@ const OBJECT_OPTIONS = {
       '<div class="summary-score">' + (stats.avg ? stats.avg.toFixed(2) : "—") + ' <span style="font-size:14px;color:var(--hint);font-weight:400;">средний балл</span></div>' +
       '<div class="summary-row"><span>Тип объекта</span><span class="val">' + def.emoji + " " + def.title + "</span></div>" +
       '<div class="summary-row"><span>Объект</span><span class="val">' + escapeHtml(state.object || "—") + "</span></div>" +
-      '<div class="summary-row"><span>Дата / время</span><span class="val">' + state.date + " " + state.time + "</span></div>" +
+      '<div class="summary-row"><span>Дата / время</span><span class="val">' + isoDateToDisplay(state.date) + " " + state.time + "</span></div>" +
       '<div class="summary-row"><span>Тайный гость (ID)</span><span class="val">' + escapeHtml(state.guestId || "—") + "</span></div>" +
       '<div class="summary-row"><span>Оценено критериев</span><span class="val">' + stats.scoredCount + " / " + stats.total + "</span></div>" +
       '<div class="summary-row"><span>Не применялось</span><span class="val">' + stats.skipped + "</span></div>";
