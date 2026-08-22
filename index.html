@@ -6,19 +6,26 @@
 <title>КРО — Проверка объекта</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
+/* Фирменная тема КРО — фиксированная для всех пользователей и НЕ зависит
+   от личной темы Telegram конкретного человека (света/тьмы/акцентного
+   цвета). Раньше значения брались из var(--tg-theme-*, ...) — тех самых
+   переменных, которые Telegram подставляет исходя из темы каждого
+   пользователя; теперь это просто константы. Чтобы поменять цвета —
+   меняйте значения именно здесь, больше нигде трогать не нужно. */
 :root{
-  --bg: var(--tg-theme-bg-color, #f4f4f7);
-  --secondary-bg: var(--tg-theme-secondary-bg-color, #eceef2);
-  --text: var(--tg-theme-text-color, #1c1c1e);
-  --hint: var(--tg-theme-hint-color, #8e8e93);
-  --link: var(--tg-theme-link-color, #2481cc);
-  --accent: var(--tg-theme-button-color, #2481cc);
-  --accent-text: var(--tg-theme-button-text-color, #ffffff);
-  --section-bg: var(--tg-theme-section-bg-color, #ffffff);
-  --header-bg: var(--tg-theme-header-bg-color, #ffffff);
-  --divider: rgba(0,0,0,0.08);
-  --danger: #e53935;
+  --bg: #000000;
+  --secondary-bg: #1c1c1e;
+  --text: #ffffff;
+  --hint: #8e8e93;
+  --link: #8619fe;
+  --accent: #8619fe;
+  --accent-text: #ffffff;
+  --section-bg: #1c1c1e;
+  --header-bg: #000000;
+  --divider: rgba(255,255,255,0.12);
+  --danger: #ff453a;
   --good: #34c759;
+  --card-title: #0a84ff;
   --radius: 14px;
 }
 
@@ -92,7 +99,7 @@ body{
 }
 .type-card:active{ transform: scale(0.98); }
 .type-emoji{ font-size: 34px; }
-.type-title{ font-size: 17px; font-weight: 600; margin-top: 4px; }
+.type-title{ font-size: 17px; font-weight: 600; margin-top: 4px; color: var(--card-title); }
 .type-sub{ font-size: 13px; color: var(--hint); }
 
 .draft-banner{
@@ -1022,6 +1029,13 @@ const OBJECT_OPTIONS = {
   if (tg) {
     tg.ready();
     tg.expand();
+    // Фиксируем фирменные цвета и для "родного" оформления Telegram вокруг
+    // мини-аппа (шапка/статус-бар, нижняя область) — не только для нашего
+    // HTML. В старых клиентах этих методов может не быть — оборачиваем
+    // в try/catch, чтобы не ломать остальной запуск приложения.
+    try { tg.setHeaderColor("#000000"); } catch (e) {}
+    try { tg.setBackgroundColor("#000000"); } catch (e) {}
+    try { tg.setBottomBarColor("#000000"); } catch (e) {}
   }
 
   // ---------- Состояние ----------
