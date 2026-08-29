@@ -446,7 +446,7 @@ h2{ font-size: 18px; margin: 6px 0 16px; }
 
 <script>
 // ====== НАСТРОЙКИ (заполните после деплоя Apps Script) ======
-var APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwPYOzz8tkqShGlfpmpSwZfHF5Bzvwh6UMJmyujo2PwkPgIEiOSsWJx3cIVfaQm20QSyw/exec";
 var APP_TITLE = "Проверка КРО";
 // ==============================================================
 
@@ -715,10 +715,6 @@ const CHECKLISTS = {
             "text": "Соблюдение регламента «чек-намерение» до 19:00"
           },
           {
-            "id": "r10-2",
-            "text": "Выданный чек есть в системе РК (проверка после посещения)"
-          },
-          {
             "id": "r10-3",
             "text": "Официант не отказывал в выбранном способе оплаты"
           },
@@ -887,10 +883,6 @@ const CHECKLISTS = {
             "text": "Сдача выдана корректно (если оплата наличными)"
           },
           {
-            "id": "f5-6",
-            "text": "Выданный чек есть в системе РК (проверка в течение дня)"
-          },
-          {
             "id": "f5-7",
             "text": "Имя кассира озвученное при приветствии совпадает с именем в чеке"
           },
@@ -1036,6 +1028,12 @@ const OBJECT_OPTIONS = {
     try { tg.setHeaderColor("#000000"); } catch (e) {}
     try { tg.setBackgroundColor("#000000"); } catch (e) {}
     try { tg.setBottomBarColor("#000000"); } catch (e) {}
+    // На Android клиент Telegram по умолчанию перехватывает вертикальные
+    // свайпы по мини-аппу для сворачивания/закрытия — из-за этого страница
+    // может не прокручиваться вниз (жест "съедает" сам Telegram, а не наш
+    // скролл). Явно отключаем этот перехват, чтобы скролл списка чек-листа
+    // работал как обычная страница.
+    try { tg.disableVerticalSwipes(); } catch (e) {}
   }
 
   // ---------- Состояние ----------
@@ -1732,6 +1730,21 @@ const OBJECT_OPTIONS = {
   if (tg) {
     tg.BackButton.onClick(goBack);
   }
+
+  // Клавиатура за собой не убирается на свайпе — если пользователь начал
+  // жест прокрутки (реальный палец по экрану, не программный скролл при
+  // фокусе), а в этот момент открыта клавиатура для комментария/поля —
+  // убираем фокус, клавиатура скрывается сама.
+  document.addEventListener(
+    "touchmove",
+    () => {
+      const active = document.activeElement;
+      if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT")) {
+        active.blur();
+      }
+    },
+    { passive: true }
+  );
 
   // ---------- Инициализация ----------
   function init() {
