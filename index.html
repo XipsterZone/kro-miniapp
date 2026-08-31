@@ -33,15 +33,17 @@
 
 html{
   width: 100%;
-  overflow-x: hidden;
+  height: 100%;
+  overflow: hidden; /* документ сам не скроллится — см. #app ниже */
 }
 
 body{
   margin:0; padding:0;
   width: 100%;
-  overflow-x: hidden;
+  height: 100%;
+  overflow: hidden; /* см. комментарий у #app */
   overscroll-behavior: none; /* без "резинки" при перетягивании за края */
-  touch-action: pan-y; /* разрешён только вертикальный скролл жестом, горизонтальный — запрещён */
+  touch-action: none;
   background: var(--bg);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -52,12 +54,28 @@ body{
 /* Раньше здесь использовался position:fixed на html/body — из-за него в Telegram
    на iOS интерфейс визуально съезжал вправо (WebView Telegram применяет
    собственную трансформацию к странице, из-за чего fixed-позиционирование
-   считает размеры некорректно). Вместо этого просто запрещаем горизонтальный
-   скролл/перетягивание — тот же результат, без побочных эффектов. */
+   считает размеры некорректно). Вместо position:fixed используем другой приём,
+   который заодно чинит и Android: html/body вообще не скроллятся (overflow:
+   hidden выше), а весь скролл происходит ВНУТРИ #app — это обычный блочный
+   элемент со своим overflow-y:auto, а не скролл документа целиком.
+   На Android клиент Telegram перехватывает вертикальные свайпы ПО ДОКУМЕНТУ
+   (жест "потянуть/свернуть" мини-аппа) — если скроллится сам документ,
+   этот перехват может "съедать" жест прокрутки списка. Когда скроллится
+   отдельный элемент с overflow-y:auto, палец с самого начала жеста
+   попадает в обработчик прокрутки этого элемента, и системный жест
+   Telegram до него не добирается. Высота #app берётся из переменной
+   --tg-vh, которую задаёт скрипт ниже по реальной высоте вьюпорта
+   Telegram (tg.viewportStableHeight) — это надёжнее, чем 100vh, потому
+   что 100vh в WebView Telegram может не совпадать с видимой областью. */
 #app{
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  height: var(--tg-vh, 100vh);
+  overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
   padding-bottom: 24px;
   box-sizing: border-box;
 }
@@ -1031,10 +1049,27 @@ const OBJECT_OPTIONS = {
     // На Android клиент Telegram по умолчанию перехватывает вертикальные
     // свайпы по мини-аппу для сворачивания/закрытия — из-за этого страница
     // может не прокручиваться вниз (жест "съедает" сам Telegram, а не наш
-    // скролл). Явно отключаем этот перехват, чтобы скролл списка чек-листа
-    // работал как обычная страница.
+    // скролл). Явно отключаем этот перехват (работает в свежих клиентах
+    // Telegram); главный же фикс скролла на Android — это то, что теперь
+    // скроллится не документ, а сам #app (см. CSS и setViewportHeight ниже).
     try { tg.disableVerticalSwipes(); } catch (e) {}
   }
+
+  // Реальная высота видимой области Telegram Mini App (без учёта системных
+  // панелей/клавиатуры) кладётся в CSS-переменную --tg-vh, которой пользуется
+  // #app в CSS. window.innerHeight/100vh внутри WebView Telegram на Android
+  // не всегда совпадают с видимой областью — из-за этого мог обрезаться
+  // низ списка или вообще не появляться скролл. tg.viewportStableHeight —
+  // значение из самого Telegram, ему можно доверять больше.
+  function setViewportHeight() {
+    var h = (tg && tg.viewportStableHeight) || (tg && tg.viewportHeight) || window.innerHeight;
+    document.documentElement.style.setProperty("--tg-vh", h + "px");
+  }
+  setViewportHeight();
+  if (tg) {
+    try { tg.onEvent("viewportChanged", setViewportHeight); } catch (e) {}
+  }
+  window.addEventListener("resize", setViewportHeight);
 
   // ---------- Состояние ----------
   let state = null;
@@ -1318,6 +1353,9 @@ const OBJECT_OPTIONS = {
     document.getElementById("screen-" + name).classList.add("active");
     els.progressWrap.classList.toggle("hidden", name !== "checklist");
     updateBackButton();
+    // Скроллится теперь не документ (html/body), а сам #app — см. CSS.
+    var appEl = document.getElementById("app");
+    if (appEl) appEl.scrollTop = 0;
     window.scrollTo(0, 0);
   }
 
